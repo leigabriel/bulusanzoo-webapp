@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "../app.css";
+
+@font-face {
+  font-family: 'Mistral';
+  src: url('/mistral/mistral.TTF') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}

@@ -1,0 +1,176 @@
+const express = require('express');
+const router = express.Router();
+const adminController = require('../controllers/admin-controller');
+const messageController = require('../controllers/message-controller');
+const monitoringController = require('../controllers/monitoring-controller');
+const donationController = require('../controllers/donation-controller');
+const { readConfig: readEventPaymentConfig, writeConfig: writeEventPaymentConfig } = require('../config/event-payment-config');
+const { protect, authorize } = require('../middleware/auth');
+const multer = require('multer');
+const path = require('path');
+const { handleCloudinaryImageUpload } = require('../middleware/cloudinary-upload');
+const { isConfigured: isCloudinaryConfigured } = require('../config/cloudinary');
+
+// multer for model uploads
+const modelStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const modelsPath = path.join(process.cwd(), 'public/model/bulusanzoo_machine_learning');
+        cb(null, modelsPath);
+    },
+    filename: function (req, file, cb) {
+        // Keep original filename for model files
+        cb(null, file.originalname);
+    }
+});
+
+const modelUpload = multer({
+    storage: modelStorage,
+    fileFilter: function (req, file, cb) {
+        // Accept only .json and .bin files
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (ext === '.json' || ext === '.bin') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only .json and .bin files are allowed'), false);
+        }
+    },
+    limits: {
+        fileSize: 100 * 1024 * 1024 // 100MB limit per file
+    }
+});
+
+// multer for image uploads
+const imageStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadsPath = path.join(__dirname, '../uploads');
+        cb(null, uploadsPath);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname).toLowerCase();
+        cb(null, `image-${uniqueSuffix}${ext}`);
+    }
+});
+
+const imageUpload = multer({
+    storage: imageStorage,
+    fileFilter: function (req, file, cb) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only JPEG, PNG, GIF and WebP images are allowed'), false);
+        }
+    },
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    }
+});
+
+router.use(protect);
+router.use(authorize('admin'));
+
+router.get('/dashboard', adminController.getDashboardStats);
+router.get('/transactions', adminController.getTransactions);
+router.get('/users', adminController.getAllUsers);
+router.get('/users/role/:role', adminController.getUsersByRole);
+router.post('/users', adminController.createUser);
+router.put('/users/:id', adminController.updateUser);
+router.delete('/users/:id', adminController.deleteUser);
+router.get('/animals', adminController.getAllAnimals);
+router.post('/animals', adminController.createAnimal);
+router.put('/animals/:id', adminController.updateAnimal);
+router.delete('/animals/:id', adminController.deleteAnimal);
+router.get('/plants', adminController.getAllPlants);
+router.post('/plants', adminController.createPlant);
+router.put('/plants/:id', adminController.updatePlant);
+router.delete('/plants/:id', adminController.deletePlant);
+router.get('/events', adminController.getAllEvents);
+router.post('/events', adminController.createEvent);
+router.put('/events/:id', adminController.updateEvent);
+router.delete('/events/:id', adminController.deleteEvent);
+router.get('/tickets', adminController.getAllTickets);
+router.get('/tickets/export', adminController.exportTickets);
+router.get('/tickets/:id', adminController.getTicketById);
+router.put('/tickets/:id/status', adminController.updateTicketStatus);
+router.put('/tickets/:id/mark-paid', adminController.markTicketAsPaid);
+router.put('/tickets/:id/verification', adminController.updateVerificationStatus);
+router.get('/reports/revenue', adminController.getRevenueReport);
+router.get('/reports/data', adminController.getReportData);
+router.get('/reports/quick-stats', adminController.getQuickStats);
+router.get('/analytics', adminController.getAnalytics);
+
+// user management
+router.get('/users/:id', adminController.getUserById);
+router.put('/users/:id/suspend', adminController.suspendUser);
+router.put('/users/:id/unsuspend', adminController.unsuspendUser);
+router.get('/users-suspended', adminController.getSuspendedUsers);
+
+// appeal management
+router.get('/appeals', adminController.getPendingAppeals);
+router.put('/appeals/:id/review', adminController.reviewAppeal);
+
+// Notification routes
+router.get('/notifications', adminController.getNotifications);
+router.put('/notifications/:id/read', adminController.markNotificationRead);
+router.put('/notifications/read-all', adminController.markAllNotificationsRead);
+
+// Donation settings
+router.get('/donation-config', donationController.getConfig);
+router.put('/donation-config', donationController.updateConfig);
+router.get('/event-payment-config', (req, res) => {
+    res.json({ success: true, config: readEventPaymentConfig() });
+});
+router.put('/event-payment-config', (req, res) => {
+    try {
+        const updated = writeEventPaymentConfig(req.body.config || {});
+        res.json({ success: true, message: 'Event payment settings updated successfully', config: updated });
+    } catch (error) {
+        console.error('Error updating event payment config:', error);
+        res.status(500).json({ success: false, message: 'Unable to update event payment settings.' });
+    }
+});
+
+// model management
+router.post('/upload-model', modelUpload.fields([
+    { name: 'modelJson', maxCount: 1 },
+    { name: 'weights', maxCount: 50 }
+]), adminController.uploadModel);
+
+router.get('/model-info', adminController.getModelInfo);
+
+// dynamic middleware - checks cloudinary at request time
+const createDynamicUploadMiddleware = (type, fieldName) => {
+    return (req, res, next) => {
+        if (isCloudinaryConfigured()) {
+            handleCloudinaryImageUpload(type, fieldName)(req, res, next);
+        } else {
+            imageUpload.single(fieldName)(req, res, next);
+        }
+    };
+};
+
+// image upload routes
+router.post('/upload-image', createDynamicUploadMiddleware('general', 'image'), adminController.uploadImage);
+router.post('/upload-animal-image', createDynamicUploadMiddleware('animal', 'image'), adminController.uploadImage);
+router.post('/upload-plant-image', createDynamicUploadMiddleware('plant', 'image'), adminController.uploadImage);
+router.post('/upload-event-image', createDynamicUploadMiddleware('event', 'image'), adminController.uploadImage);
+
+router.get('/messages', messageController.getAllMessages);
+router.get('/messages/unread-count', messageController.getUnreadCount);
+router.get('/messages/:id', messageController.getMessageById);
+router.put('/messages/:id/read', messageController.markAsRead);
+router.put('/messages/read-all', messageController.markAllAsRead);
+router.post('/messages/:id/respond', messageController.respondToMessage);
+router.delete('/messages/:id', messageController.deleteMessage);
+router.get('/appeals', messageController.getAppeals);
+
+// staff monitoring
+router.get('/monitoring/dashboard', monitoringController.getMonitoringDashboard);
+router.get('/monitoring/sessions', monitoringController.getActiveSessions);
+router.get('/monitoring/activities', monitoringController.getRecentActivities);
+router.get('/monitoring/staff-stats', monitoringController.getStaffStats);
+router.get('/monitoring/staff/:staffId/timeline', monitoringController.getStaffTimeline);
+router.post('/monitoring/heartbeat', monitoringController.heartbeat);
+
+module.exports = router;

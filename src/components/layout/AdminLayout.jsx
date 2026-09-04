@@ -1,0 +1,820 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { authAPI, adminAPI, getProfileImageUrl } from '../../services/api-client';
+import { sanitizeInput } from '../../utils/sanitize';
+import { notify } from '../../utils/toast';
+import LogoutModal from '../common/LogoutModal';
+import CollapsibleNavGroup from '../common/CollapsibleNavGroup';
+import RoleCompanionFloatingButton from '../common/RoleCompanionFloatingButton';
+import useScrollLock from '../../hooks/use-scroll-lock';
+
+// Icons
+const SearchIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+    </svg>
+);
+
+const OverviewIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+    </svg>
+);
+
+const EventsIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+);
+
+const TicketsIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+        <path d="M13 5v2" />
+        <path d="M13 17v2" />
+        <path d="M13 11v2" />
+    </svg>
+);
+
+const UsersIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+);
+
+const AnimalsIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="w-5 h-5">
+        <path d="M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5s.3-86.2 32.6-96.8s70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-.9-78.5-33.3S-2.7 179.3 21.8 165.3s59.7 .9 78.5 33.3zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5v1.6c0 25.8-20.9 46.7-46.7 46.7c-11.5 0-22.9-1.4-34-4.2l-88-22c-15.3-3.8-31.3-3.8-46.6 0l-88 22c-11.1 2.8-22.5 4.2-34 4.2C84.9 480 64 459.1 64 433.3v-1.6c0-10.4 1.6-20.8 5.2-30.5zM421.8 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.3 78.5-33.3s29.1 51.7 10.2 84.1s-54 47.3-78.5 33.3zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5s46.9 53.9 32.6 96.8s-52.1 69.1-84.4 58.5z" />
+    </svg>
+);
+
+const PlantsIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M7 20h10" />
+        <path d="M10 20c5.5-2.5.8-6.4 3-10" />
+        <path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z" />
+        <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z" />
+    </svg>
+);
+
+const AnalyticsIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+);
+
+const ReportsIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+    </svg>
+);
+
+const MonitoringIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+    </svg>
+);
+
+const CommunityIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+);
+
+const HelpIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+);
+
+const MailIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+        <polyline points="22,6 12,13 2,6" />
+    </svg>
+);
+
+const LogoutIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+);
+
+const MenuIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+);
+
+const BellIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+);
+
+const CloseIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+);
+
+const PawIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="w-7 h-7">
+        <path d="M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5s.3-86.2 32.6-96.8s70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-.9-78.5-33.3S-2.7 179.3 21.8 165.3s59.7 .9 78.5 33.3zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5v1.6c0 25.8-20.9 46.7-46.7 46.7c-11.5 0-22.9-1.4-34-4.2l-88-22c-15.3-3.8-31.3-3.8-46.6 0l-88 22c-11.1 2.8-22.5 4.2-34 4.2C84.9 480 64 459.1 64 433.3v-1.6c0-10.4 1.6-20.8 5.2-30.5zM421.8 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.3 78.5-33.3s29.1 51.7 10.2 84.1s-54 47.3-78.5 33.3zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5s46.9 53.9 32.6 96.8s-52.1 69.1-84.4 58.5z" />
+    </svg>
+);
+
+const SettingsIcon = () => (
+    <img src="https://cdn-icons-png.flaticon.com/128/3524/3524636.png" alt="Settings" className="w-5 h-5 object-contain" />
+);
+
+const AdminLayout = ({ children }) => {
+    const { user, logout, updateUser } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const fileInputRef = useRef(null);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    const [profileForm, setProfileForm] = useState({ firstName: '', lastName: '', email: '' });
+    const [profileLoading, setProfileLoading] = useState(false);
+    const [profileSaving, setProfileSaving] = useState(false);
+    const [previewImage, setPreviewImage] = useState(null);
+    const [aiAssistOpen, setAiAssistOpen] = useState(false);
+    const [openNavGroups, setOpenNavGroups] = useState({ main: true, management: true, communication: true, insights: true, system: true });
+
+    // Real notifications state
+    const [notifications, setNotifications] = useState([]);
+    const [notificationsLoading, setNotificationsLoading] = useState(false);
+    const [activitySummary, setActivitySummary] = useState(null);
+
+    // Fetch real notifications from API
+    const fetchNotifications = async () => {
+        try {
+            setNotificationsLoading(true);
+            const res = await adminAPI.getNotifications();
+            if (res.success) {
+                setNotifications(res.notifications || []);
+                setActivitySummary(res.summary || null);
+            }
+        } catch (err) {
+            // Error fetching notifications
+        } finally {
+            setNotificationsLoading(false);
+        }
+    };
+
+    // Fetch notifications on mount and periodically
+    useEffect(() => {
+        fetchNotifications();
+        // Refresh notifications every 30 seconds for real-time updates
+        const interval = setInterval(fetchNotifications, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Generate recent activities from summary
+    const recentActivities = useMemo(() => {
+        if (!activitySummary) return [];
+        const activities = [];
+
+        if (activitySummary.tickets?.today > 0) {
+            activities.push({
+                id: 'tickets',
+                icon: '🎟️',
+                message: `${activitySummary.tickets.today} ticket${activitySummary.tickets.today > 1 ? 's' : ''} sold today.`,
+                time: 'Today',
+                color: 'green'
+            });
+        }
+
+        if (activitySummary.users?.today > 0) {
+            activities.push({
+                id: 'users',
+                icon: '👤',
+                message: `${activitySummary.users.today} new user${activitySummary.users.today > 1 ? 's' : ''} registered.`,
+                time: 'Today',
+                color: 'blue'
+            });
+        }
+
+        if (activitySummary.pendingTickets > 0) {
+            activities.push({
+                id: 'pending',
+                icon: '⏳',
+                message: `${activitySummary.pendingTickets} ticket${activitySummary.pendingTickets > 1 ? 's' : ''} pending confirmation.`,
+                time: 'Action needed',
+                color: 'yellow'
+            });
+        }
+
+        if (activitySummary.events?.upcoming > 0) {
+            activities.push({
+                id: 'events',
+                icon: '📅',
+                message: `${activitySummary.events.upcoming} upcoming event${activitySummary.events.upcoming > 1 ? 's' : ''}.`,
+                time: 'Scheduled',
+                color: 'purple'
+            });
+        }
+
+        return activities;
+    }, [activitySummary]);
+
+    const handleLogout = () => {
+        logout();
+        navigate('/admin');
+    };
+
+    // Load profile data when modal opens
+    const loadProfile = async () => {
+        try {
+            setProfileLoading(true);
+            const res = await authAPI.getProfile('admin');
+            if (res && res.success && res.user) {
+                setProfileForm({
+                    firstName: res.user.firstName || res.user.first_name || '',
+                    lastName: res.user.lastName || res.user.last_name || '',
+                    email: res.user.email || ''
+                });
+                if (res.user.profileImage || res.user.profile_image) {
+                    const imgUrl = res.user.profileImage || res.user.profile_image;
+                    setPreviewImage(getProfileImageUrl(imgUrl));
+                }
+            } else if (user) {
+                setProfileForm({
+                    firstName: user.firstName || user.first_name || '',
+                    lastName: user.lastName || user.last_name || '',
+                    email: user.email || ''
+                });
+            }
+        } catch (err) {
+            notify.error("Couldn't load profile.");
+        } finally {
+            setProfileLoading(false);
+        }
+    };
+
+    // Save profile changes
+    const saveProfile = async () => {
+        setProfileSaving(true);
+        try {
+            const payload = { firstName: profileForm.firstName, lastName: profileForm.lastName };
+            const res = await authAPI.updateProfile(payload, 'admin');
+            if (res && res.success) {
+                updateUser({ ...user, firstName: profileForm.firstName, lastName: profileForm.lastName });
+                notify.success('Profile updated.');
+            } else {
+                notify.error(res.message || "Couldn't save changes.");
+            }
+        } catch (err) {
+            notify.error("Couldn't save changes.");
+        } finally {
+            setProfileSaving(false);
+        }
+    };
+
+    // Open profile modal
+    const openProfileModal = () => {
+        setShowProfileModal(true);
+        loadProfile();
+    };
+
+    const menuItems = [
+        { path: '/admin/dashboard', label: 'Overview', Icon: OverviewIcon },
+    ];
+
+    const managementItems = [
+        { path: '/admin/events', label: 'Events', Icon: EventsIcon },
+        { path: '/admin/reservations', label: 'Reservations', Icon: TicketsIcon },
+        { path: '/admin/transactions', label: 'Transactions', Icon: TicketsIcon },
+        { path: '/admin/animals', label: 'Manage Animals', Icon: AnimalsIcon },
+        { path: '/admin/plants', label: 'Manage Plants', Icon: PlantsIcon },
+        { path: '/admin/users', label: 'Manage Users', Icon: UsersIcon },
+    ];
+
+    const communicationItems = [
+        { path: '/admin/messages', label: 'Messages', Icon: MailIcon },
+        { path: '/admin/community-moderation', label: 'Community Moderation', Icon: CommunityIcon },
+    ];
+
+    const insightItems = [
+        { path: '/admin/analytics', label: 'Analytics', Icon: AnalyticsIcon },
+        { path: '/admin/reports', label: 'Reports', Icon: ReportsIcon },
+        { path: '/admin/staff-monitoring', label: 'Staff Monitoring', Icon: MonitoringIcon },
+    ];
+
+    const systemItems = [
+        { path: '/admin/settings', label: 'Settings', Icon: SettingsIcon },
+    ];
+
+    const allMenuItems = [...menuItems, ...managementItems, ...communicationItems, ...insightItems, ...systemItems];
+    const navGroups = [
+        { key: 'main', label: 'Main', items: menuItems },
+        { key: 'management', label: 'Management', items: managementItems },
+        { key: 'communication', label: 'Communication', items: communicationItems },
+        { key: 'insights', label: 'Insights', items: insightItems },
+        { key: 'system', label: 'System', items: systemItems },
+    ];
+    const hasOpenOverlay = sidebarOpen || notificationPanelOpen || showProfileModal || showLogoutModal || aiAssistOpen;
+
+    useScrollLock(hasOpenOverlay);
+
+    const filteredMenuItems = useMemo(() => {
+        if (!searchQuery.trim()) return allMenuItems;
+        const query = searchQuery.toLowerCase();
+        return allMenuItems.filter(item =>
+            item.label.toLowerCase().includes(query)
+        );
+    }, [searchQuery, allMenuItems]);
+
+    const handleNavClick = () => {
+        if (window.innerWidth < 1024) {
+            setSidebarOpen(false);
+        }
+    };
+
+    // Close sidebars on route change for mobile
+    useEffect(() => {
+        setSidebarOpen(false);
+        setNotificationPanelOpen(false);
+    }, [location.pathname]);
+
+    // Close notification panel when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (notificationPanelOpen && !e.target.closest('.notification-panel') && !e.target.closest('.notification-bell')) {
+                setNotificationPanelOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [notificationPanelOpen]);
+
+    const unreadCount = notifications.filter(n => !n.read).length;
+
+    return (
+        <div className="flex h-screen bg-gray-50 overflow-hidden">
+            {/* Mobile overlay for left sidebar */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/40 z-40 lg:hidden backdrop-blur-sm"
+                    onClick={() => setSidebarOpen(false)}
+                    aria-hidden="true"
+                />
+            )}
+
+            {/* Notification Panel Overlay */}
+            {notificationPanelOpen && (
+                <div
+                    className="fixed inset-0 bg-black/20 z-40 backdrop-blur-sm"
+                    onClick={() => setNotificationPanelOpen(false)}
+                    aria-hidden="true"
+                />
+            )}
+
+            {/* Left Sidebar */}
+            <aside
+                className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} 
+                    fixed lg:relative z-50 lg:z-auto w-64 bg-[#ebebeb] border-r border-gray-300 
+                    transition-transform duration-300 flex flex-col h-full`}
+                aria-label="Admin navigation"
+            >
+                {/* Logo Section */}
+                <div className="p-5 flex items-center gap-3 border-b border-gray-300">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white">
+                        <img src="/bz-url-logo.png" alt="Bz Logo" className="w-12 h-12 object-contain" />
+                    </div>
+                    <div>
+                        <h1 className="font-bold text-gray-900 text-lg uppercase">Bulusan Zoo</h1>
+                        <p className="text-xs text-gray-500">Admin Panel</p>
+                    </div>
+                    <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="ml-auto lg:hidden text-gray-400 hover:text-gray-900"
+                    >
+                        <CloseIcon />
+                    </button>
+                </div>
+
+                {/* Navigation Menu */}
+                <nav className="flex-1 px-3 py-4 overflow-y-auto" role="navigation">
+                    {navGroups.map((group) => (
+                        <CollapsibleNavGroup
+                            key={group.key}
+                            label={group.label}
+                            items={group.items}
+                            open={openNavGroups[group.key]}
+                            onToggle={() => setOpenNavGroups((current) => ({ ...current, [group.key]: !current[group.key] }))}
+                            pathname={location.pathname}
+                            onNavigate={handleNavClick}
+                        />
+                    ))}
+                </nav>
+
+                {/* Bottom Section - Help & Logout */}
+                <div className="p-4 border-t border-gray-200 space-y-2">
+                    <Link
+                        to="/admin/help"
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${location.pathname === '/admin/help'
+                                ? 'bg-green-50 text-green-700'
+                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                            }`}
+                    >
+                        <HelpIcon />
+                        <span className="font-medium">Help Center</span>
+                    </Link>
+
+                    {/* User Profile Card */}
+                    <div className="flex items-center gap-3 p-3 bg-gray-100 rounded-xl mt-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center font-bold text-white">
+                            {user?.fullName?.charAt(0) || user?.firstName?.charAt(0) || 'A'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`}</p>
+                            <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={() => setShowLogoutModal(true)}
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-red-500 hover:bg-red-600 
+                            rounded-xl font-medium text-white transition-all duration-200 
+                            shadow-md shadow-red-500/20"
+                        aria-label="Logout from admin panel"
+                    >
+                        <LogoutIcon />
+                        Logout
+                    </button>
+                </div>
+            </aside>
+
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Top Header */}
+                <header className="bg-[#ebebeb] border-b border-gray-300 px-4 lg:px-6 py-4 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            className="p-2 hover:bg-gray-100 rounded-xl text-gray-500 hover:text-gray-900 transition lg:hidden"
+                            aria-label={sidebarOpen ? 'Close sidebar menu' : 'Open sidebar menu'}
+                            aria-expanded={sidebarOpen}
+                        >
+                            <MenuIcon />
+                        </button>
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-900">
+                                {allMenuItems.find(item => item.path === location.pathname)?.label ||
+                                    (location.pathname === '/admin/help' ? 'Help Center' :
+                                        location.pathname === '/admin/profile' ? 'Profile' : 'Dashboard')}
+                            </h2>
+                            <p className="text-sm text-gray-500">
+                                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setAiAssistOpen(true)}
+                            className="flex items-center gap-2 rounded-xl bg-[#c6fe69] px-3 py-2 text-sm font-semibold text-gray-900 transition hover:bg-[#b6ef58]"
+                            aria-label="Open AI Assist"
+                        >
+                            <img src="/admin-staff-icon-ai.svg" alt="" className="h-6 w-6 object-contain" />
+                            <span className="hidden sm:inline">AI Assist</span>
+                        </button>
+                        {/* Notification Bell */}
+                        <button
+                            onClick={() => setNotificationPanelOpen(!notificationPanelOpen)}
+                            className="notification-bell relative p-2.5 hover:bg-gray-100 rounded-xl text-gray-500 hover:text-gray-900 transition"
+                            aria-label="Toggle notifications"
+                        >
+                            <BellIcon />
+                            {unreadCount > 0 && (
+                                <span className="absolute top-1 right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                                    {unreadCount}
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Profile Button */}
+                        <button
+                            onClick={openProfileModal}
+                            className="flex items-center gap-3 hover:bg-gray-100 px-3 py-2 rounded-xl transition"
+                        >
+                            <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold">
+                                {(user?.firstName || user?.lastName || user?.fullName)?.charAt(0) || 'A'}
+                            </div>
+                            <div className="text-left hidden md:block">
+                                <div className="text-sm text-gray-900 font-medium">{user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`}</div>
+                                <div className="text-xs text-gray-500">View profile</div>
+                            </div>
+                        </button>
+                    </div>
+                </header>
+
+                {/* Main Content */}
+                <main className={`flex-1 p-4 lg:p-6 bg-gray-50 ${hasOpenOverlay ? 'overflow-hidden' : 'overflow-auto'}`}>
+                    {typeof children === 'function' ? children({ globalSearch: searchQuery }) :
+                        React.Children.map(children, child =>
+                            React.isValidElement(child) ? React.cloneElement(child, { globalSearch: searchQuery }) : child
+                        )}
+                </main>
+            </div>
+
+            {/* Slide-in Notification Panel */}
+            <aside
+                className={`notification-panel fixed right-0 top-0 z-50 w-full sm:w-[420px] max-w-lg h-full bg-white border-l border-gray-200 flex flex-col overscroll-contain
+                    transform transition-transform duration-300 ease-in-out ${notificationPanelOpen ? 'translate-x-0' : 'translate-x-full'
+                    }`}
+                aria-label="Notifications panel"
+            >
+                {/* Notifications Header */}
+                <div className="p-5 flex items-center justify-between border-b border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <BellIcon />
+                        Notifications
+                        {unreadCount > 0 && (
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                {unreadCount} new
+                            </span>
+                        )}
+                    </h3>
+                    <button
+                        onClick={() => setNotificationPanelOpen(false)}
+                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-900 transition"
+                    >
+                        <CloseIcon />
+                    </button>
+                </div>
+
+                {/* Notifications List */}
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 space-y-3">
+                    {notificationsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    ) : notifications.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            <BellIcon />
+                            <p className="mt-2">No notifications</p>
+                        </div>
+                    ) : (
+                        notifications.map((notification) => (
+                            <div
+                                key={notification.id}
+                                onClick={async () => {
+                                    // Mark as read
+                                    if (!notification.read) {
+                                        try {
+                                            await adminAPI.markNotificationRead(notification.id);
+                                            setNotifications(prev =>
+                                                prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
+                                            );
+                                        } catch (err) {
+                                            // Handle error silently
+                                        }
+                                    }
+                                    // Navigate to link if available
+                                    if (notification.link) {
+                                        setNotificationPanelOpen(false);
+                                        navigate(notification.link);
+                                    }
+                                }}
+                                className={`p-4 rounded-xl border transition-all cursor-pointer hover:border-green-300 ${notification.read
+                                        ? 'bg-gray-50 border-gray-100'
+                                        : 'bg-green-50 border-green-200'
+                                    }`}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${notification.read ? 'bg-gray-300' : 'bg-green-500'
+                                        }`}></div>
+                                    <div className="flex-1 min-w-0">
+                                        {notification.title && (
+                                            <p className={`text-sm font-medium ${notification.read ? 'text-gray-600' : 'text-gray-900'}`}>
+                                                {notification.title}
+                                            </p>
+                                        )}
+                                        <p className={`text-sm ${notification.read ? 'text-gray-500' : 'text-gray-700'}`}>
+                                            {notification.message}
+                                        </p>
+                                        <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                                    </div>
+                                    {notification.link && (
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-gray-400 flex-shrink-0">
+                                            <polyline points="9 18 15 12 9 6" />
+                                        </svg>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* Activities Section */}
+                <div className="border-t border-gray-200 p-4">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Recent Activities</h4>
+                    <div className="space-y-3">
+                        {recentActivities.map((activity) => (
+                            <div key={activity.id} className="flex items-center gap-3 text-sm">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${activity.color === 'blue' ? 'bg-blue-100 text-blue-600' :
+                                        activity.color === 'green' ? 'bg-green-100 text-green-600' :
+                                            'bg-yellow-100 text-yellow-600'
+                                    }`}>
+                                    <span className="text-xs">{activity.icon}</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-gray-700 truncate">{activity.message}</p>
+                                    <p className="text-xs text-gray-500">{activity.time}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Mark All Read Button */}
+                <div className="border-t border-gray-200 p-4">
+                    <button
+                        onClick={async () => {
+                            try {
+                                await adminAPI.markAllNotificationsRead();
+                                setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                            } catch (err) {
+                                console.error('Error marking all as read:', err);
+                            }
+                        }}
+                        disabled={unreadCount === 0}
+                        className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 rounded-xl text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Mark all as read
+                    </button>
+                </div>
+            </aside>
+
+            {/* Profile Modal */}
+            {showProfileModal && (
+                <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto overscroll-contain shadow-xl">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+                            <h2 className="text-xl font-bold text-gray-900">Admin Profile</h2>
+                            <button
+                                onClick={() => setShowProfileModal(false)}
+                                className="text-gray-400 hover:text-gray-900 transition"
+                            >
+                                <CloseIcon />
+                            </button>
+                        </div>
+
+                        {profileLoading ? (
+                            <div className="flex items-center justify-center p-12">
+                                <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                        ) : (
+                            <div className="p-5 space-y-5">
+                                {/* Avatar */}
+                                <div className="flex justify-center">
+                                    <div className="w-24 h-24 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center overflow-hidden">
+                                        {previewImage ? (
+                                            <img
+                                                src={previewImage}
+                                                alt="Profile"
+                                                className="w-full h-full object-cover"
+                                                referrerPolicy="no-referrer"
+                                                onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
+                                            />
+                                        ) : (
+                                            <span className="text-4xl font-bold text-white">
+                                                {profileForm.firstName?.charAt(0) || 'A'}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Role Badge */}
+                                <div className="flex justify-center">
+                                    <span className="px-4 py-1.5 bg-green-100 text-green-700 text-sm font-medium rounded-full">
+                                        Administrator
+                                    </span>
+                                </div>
+
+                                {/* First Name */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                                    <input
+                                        type="text"
+                                        value={profileForm.firstName}
+                                        onChange={(e) => setProfileForm({ ...profileForm, firstName: sanitizeInput(e.target.value) })}
+                                        className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500/20 transition-all"
+                                        placeholder="Enter first name"
+                                    />
+                                </div>
+
+                                {/* Last Name */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                                    <input
+                                        type="text"
+                                        value={profileForm.lastName}
+                                        onChange={(e) => setProfileForm({ ...profileForm, lastName: sanitizeInput(e.target.value) })}
+                                        className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500/20 transition-all"
+                                        placeholder="Enter last name"
+                                    />
+                                </div>
+
+                                {/* Email (Read-only) */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                                    <input
+                                        type="email"
+                                        value={profileForm.email}
+                                        readOnly
+                                        className="w-full bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                                </div>
+
+                                {/* Account Status */}
+                                <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-gray-600">Status</span>
+                                        <span className="flex items-center gap-1.5 text-green-600">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                            Active
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-gray-600">Role</span>
+                                        <span className="text-gray-900 capitalize">{user?.role || 'Admin'}</span>
+                                    </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex gap-3 pt-2">
+                                    <button
+                                        onClick={() => setShowProfileModal(false)}
+                                        className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl font-medium transition"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={saveProfile}
+                                        disabled={profileSaving}
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition disabled:opacity-50"
+                                    >
+                                        {profileSaving ? (
+                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        ) : (
+                                            'Save Changes'
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            <LogoutModal
+                isOpen={showLogoutModal}
+                onClose={() => setShowLogoutModal(false)}
+                onConfirm={handleLogout}
+            />
+
+            <RoleCompanionFloatingButton role="admin" open={aiAssistOpen} onOpenChange={setAiAssistOpen} hideTrigger />
+
+        </div>
+    );
+};
+
+export default AdminLayout;

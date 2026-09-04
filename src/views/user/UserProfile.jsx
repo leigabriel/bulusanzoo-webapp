@@ -1,0 +1,534 @@
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { authAPI, getProfileImageUrl as resolveProfileImageUrl } from '../../services/api-client';
+import { sanitizeInput } from '../../utils/sanitize';
+import { isDefaultAvatar, getDefaultAvatarSvg, getInitials } from '../../utils/profile-avatars';
+import { notify } from '../../utils/toast';
+import LogoutModal from '../../components/common/LogoutModal';
+import AvatarSelector from '../../components/common/AvatarSelector';
+import LetterHoverTitle from '../../components/common/LetterHoverTitle';
+
+const UserIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-16 h-16 text-gray-300">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+    </svg>
+);
+
+const CameraIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+        <circle cx="12" cy="13" r="4" />
+    </svg>
+);
+
+const VerifiedIcon = () => (
+    <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.64.304 1.24.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
+    </svg>
+);
+
+const UserProfile = ({ embedded = false, onClose }) => {
+    const { user, logout, updateUser } = useAuth();
+    const navigate = useNavigate();
+    const hasPassword = user?.hasPassword !== false && user?.authProvider !== 'google';
+    const [isEditing, setIsEditing] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    const [passwordError, setPasswordError] = useState('');
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletePassword, setDeletePassword] = useState('');
+    const [deleteError, setDeleteError] = useState('');
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+    const [imagePreview, setImagePreview] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [imageLoadError, setImageLoadError] = useState(false);
+    const [showAvatarSelector, setShowAvatarSelector] = useState(false);
+    const [selectedDefaultAvatar, setSelectedDefaultAvatar] = useState(null);
+    const fileInputRef = useRef(null);
+
+    const [formData, setFormData] = useState({
+        firstName: '',
+        lastName: ''
+    });
+
+    useEffect(() => {
+        if (user) {
+            setFormData({
+                firstName: user.firstName || '',
+                lastName: user.lastName || ''
+            });
+        }
+    }, [user]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: sanitizeInput(value) });
+    };
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setSelectedFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => setImagePreview(reader.result);
+        reader.readAsDataURL(file);
+    };
+
+    const handleImageUpload = async () => {
+        if (!selectedFile) return;
+        setUploadingImage(true);
+        try {
+            const response = await authAPI.uploadProfileImage(selectedFile);
+            if (response.success) {
+                if (response.user) {
+                    updateUser({
+                        ...user,
+                        ...response.user,
+                        profileImage: response.user.profileImage || response.user.profile_image,
+                        profile_image: response.user.profile_image || response.user.profileImage
+                    });
+                }
+                setSelectedFile(null);
+                setImagePreview(null);
+                notify.success('Photo updated.');
+            }
+        } catch (error) {
+            console.error(error);
+            notify.error("Couldn't update photo. Please try again.");
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
+    const handleRemoveImage = async () => {
+        setUploadingImage(true);
+        try {
+            const response = await authAPI.deleteProfileImage();
+            if (response.success) {
+                updateUser({ ...user, profileImage: null, profile_image: null });
+                notify.success('Photo removed.');
+            }
+        } catch (error) {
+            console.error(error);
+            notify.error("Couldn't remove photo.");
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
+    const handleSave = async () => {
+        setShowSaveConfirm(false);
+        setLoading(true);
+        try {
+            const response = await authAPI.updateProfile(formData);
+            if (response.success) {
+                if (response.user) {
+                    updateUser({
+                        ...user,
+                        ...response.user,
+                        profileImage: response.user.profileImage || user.profileImage || user.profile_image,
+                        profile_image: response.user.profile_image || user.profile_image || user.profileImage
+                    });
+                }
+                setIsEditing(false);
+                notify.success('Profile updated.');
+            } else {
+                notify.error(response.message || "Couldn't save changes.");
+            }
+        } catch (error) {
+            console.error(error);
+            notify.error("Couldn't save changes.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePasswordChange = async () => {
+        setPasswordError('');
+        
+        if ((hasPassword && !passwordData.currentPassword) || !passwordData.newPassword || !passwordData.confirmPassword) {
+            setPasswordError(hasPassword ? 'Current password and all new password fields are required' : 'Complete all password fields');
+            return;
+        }
+        
+        if (passwordData.newPassword.length < 8) {
+            setPasswordError('New password must be at least 8 characters');
+            return;
+        }
+
+        if (!/[A-Z]/.test(passwordData.newPassword) || !/[0-9]/.test(passwordData.newPassword) || !/[^A-Za-z0-9\s]/.test(passwordData.newPassword)) {
+            setPasswordError('Use at least one uppercase letter, one number, and one special character.');
+            return;
+        }
+        
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            setPasswordError('New passwords do not match');
+            return;
+        }
+        
+        setLoading(true);
+        try {
+            const response = await authAPI.updatePassword(passwordData);
+            if (response.success) {
+                updateUser({ ...user, hasPassword: true, authProvider: 'local' });
+                setShowPasswordModal(false);
+                setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                setPasswordError('');
+                notify.success('Password updated.');
+            } else {
+                setPasswordError(response.message || 'Failed to change password');
+            }
+        } catch (error) {
+            console.error(error);
+            setPasswordError(error.message || 'Could not change your password. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        setDeleteError('');
+        if (!deletePassword) {
+            setDeleteError('Enter your password to confirm account deletion.');
+            return;
+        }
+
+        setDeleteLoading(true);
+        try {
+            const response = await authAPI.deleteAccount({ password: deletePassword });
+            if (!response.success) {
+                setDeleteError(response.message || 'Could not delete your account.');
+                return;
+            }
+            logout();
+            navigate('/login', { replace: true, state: { message: 'Your account and associated data were deleted.' } });
+        } catch (error) {
+            setDeleteError(error.message || 'Could not delete your account.');
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    const handleLogout = () => {
+        setShowLogoutConfirm(false);
+        logout();
+        navigate('/');
+    };
+
+    const getProfileImageUrl = () => {
+        // If there's a preview from file selection, use it
+        if (imagePreview) return imagePreview;
+        
+        // If a default avatar is selected, use the SVG
+        if (selectedDefaultAvatar) {
+            return getDefaultAvatarSvg(selectedDefaultAvatar);
+        }
+        
+        const profileImg = user?.profileImage || user?.profile_image;
+        
+        // Check if the user has a default avatar set
+        if (profileImg && isDefaultAvatar(profileImg)) {
+            return getDefaultAvatarSvg(profileImg);
+        }
+        
+        return resolveProfileImageUrl(profileImg);
+    };
+
+    const handleAvatarSelect = async (avatarKey) => {
+        setSelectedDefaultAvatar(avatarKey);
+        setShowAvatarSelector(false);
+        
+        // Save the avatar selection to the server
+        try {
+            setUploadingImage(true);
+            const response = await authAPI.updateProfile({ 
+                profileImage: avatarKey,
+                firstName: user.firstName,
+                lastName: user.lastName
+            });
+            if (response.success) {
+                updateUser({
+                    ...user,
+                    profileImage: avatarKey,
+                    profile_image: avatarKey
+                });
+                notify.success('Avatar updated.');
+            }
+        } catch (error) {
+            console.error('Error updating avatar:', error);
+            notify.error("Couldn't update avatar.");
+        } finally {
+            setUploadingImage(false);
+            setSelectedDefaultAvatar(null);
+        }
+    };
+
+    const handleImageError = () => {
+        setImageLoadError(true);
+    };
+
+    if (!user) return null;
+
+    return (
+        <div className={`${embedded ? 'min-h-full' : 'min-h-screen'} w-full bg-[#f7faf7] flex flex-col items-center`}>
+            <div className={`${embedded ? 'min-h-full' : 'min-h-screen'} w-full flex flex-col`}>
+
+                <div className="flex items-center justify-between border-b border-[#dce5dc] bg-white px-5 py-4 sm:px-8">
+                    <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">Your account</p>
+                        <h2 className="mt-1 text-lg font-bold tracking-tight text-[#172018]">Profile</h2>
+                    </div>
+                    <button
+                        onClick={() => embedded ? onClose?.() : navigate(-1)}
+                        className="flex items-center gap-2 rounded-full border border-gray-200 px-3.5 py-2 text-xs font-bold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
+                    >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
+                        {embedded ? 'Close' : 'Back'}
+                    </button>
+                </div>
+
+                <div className="w-full max-w-5xl mx-auto px-5 py-8 sm:px-8 lg:px-10 flex-grow">
+                    <div className="flex flex-col sm:flex-row justify-between items-start mb-10 gap-6">
+                        <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6">
+                             <div className="relative group">
+                                 <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gray-100">
+                                    {getProfileImageUrl() && !imageLoadError ? (
+                                        <img 
+                                            src={getProfileImageUrl()} 
+                                            alt="Profile" 
+                                            className="w-full h-full object-cover"
+                                            onError={handleImageError}
+                                            referrerPolicy="no-referrer"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-400 to-teal-500">
+                                            <span className="text-4xl font-bold text-white">
+                                                {getInitials(user?.firstName, user?.lastName)}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="absolute bottom-2 right-2 flex gap-1">
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="p-2 bg-white border border-gray-100 rounded-full shadow-lg text-gray-700 hover:text-emerald-600 transition"
+                                        title="Upload photo"
+                                    >
+                                        <CameraIcon />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowAvatarSelector(true)}
+                                        className="p-2 bg-white border border-gray-100 rounded-full shadow-lg text-gray-700 hover:text-emerald-600 transition"
+                                        title="Choose avatar"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                                            <line x1="9" y1="9" x2="9.01" y2="9"/>
+                                            <line x1="15" y1="9" x2="15.01" y2="9"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+                            </div>
+                             <div className="pb-1 text-center sm:text-left">
+                                <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                                         <LetterHoverTitle className="text-2xl sm:text-3xl font-extrabold text-[#212631] tracking-tight">
+                                             {user.firstName} {user.lastName}
+                                         </LetterHoverTitle>
+                                    <VerifiedIcon/>
+                                </div>
+                                <p className="text-lg text-gray-400 font-medium">@{user.username}</p>
+                                {(user?.profileImage || user?.profile_image) && !selectedFile && (
+                                    <button onClick={handleRemoveImage} className="text-sm text-red-500 font-bold hover:underline mt-2">Remove photo</button>
+                                )}
+                            </div>
+                        </div>
+                         <div className="w-full sm:w-auto">
+                            <button
+                                onClick={() => setIsEditing(!isEditing)}
+                                className="w-full sm:w-auto px-8 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 transition"
+                            >
+                                {isEditing ? 'Cancel' : 'Edit profile'}
+                            </button>
+                        </div>
+                    </div>
+
+                     <div className="h-px bg-[#dce5dc] mb-10 w-full"></div>
+
+                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 pb-14">
+                         <div className="lg:col-span-4 lg:pt-1">
+                            <h3 className="text-lg font-bold text-gray-900">Personal information</h3>
+                            <p className="text-sm text-gray-400 mt-2 leading-relaxed">
+                                Manage your personal details and account settings to keep your profile up to date.
+                            </p>
+                        </div>
+
+                         <div className="lg:col-span-8 space-y-8 rounded-2xl border border-[#dce5dc] bg-white p-5 shadow-sm sm:p-7">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-gray-700 ml-1">First name</label>
+                                    <input
+                                        name="firstName"
+                                        value={isEditing ? formData.firstName : user.firstName}
+                                        onChange={handleChange}
+                                        disabled={!isEditing}
+                                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition disabled:bg-gray-50 disabled:text-gray-400"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-gray-700 ml-1">Last name</label>
+                                    <input
+                                        name="lastName"
+                                        value={isEditing ? formData.lastName : user.lastName}
+                                        onChange={handleChange}
+                                        disabled={!isEditing}
+                                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition disabled:bg-gray-50 disabled:text-gray-400"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-gray-700 ml-1">Email address</label>
+                                <input
+                                    value={user.email}
+                                    disabled
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 outline-none cursor-not-allowed"
+                                />
+                            </div>
+
+                            {isEditing && (
+                                <button onClick={() => setShowSaveConfirm(true)} disabled={loading} className="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition active:scale-[0.99] disabled:opacity-50">
+                                    {loading ? 'Processing...' : 'Save Changes'}
+                                </button>
+                            )}
+
+                            <div className="pt-8 border-t border-gray-50">
+                                <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider">Security & Session</h3>
+                                <div className="flex flex-wrap gap-4">
+                                     <button
+                                         onClick={() => setShowPasswordModal(true)}
+                                        className="flex-1 sm:flex-none px-6 py-2.5 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50 transition"
+                                    >
+                        {hasPassword ? 'Change Password' : 'Add Password'}
+                                    </button>
+                                     <button
+                                        onClick={() => setShowLogoutConfirm(true)}
+                                        className="flex-1 sm:flex-none px-6 py-2.5 border border-red-100 rounded-lg text-sm font-bold text-red-600 hover:bg-red-50 transition"
+                                    >
+                                         Logout
+                                     </button>
+                                     <button
+                                         onClick={() => { setDeletePassword(''); setDeleteError(''); setShowDeleteModal(true); }}
+                                         className="flex-1 sm:flex-none px-6 py-2.5 border border-red-200 rounded-lg text-sm font-bold text-red-700 hover:bg-red-50 transition"
+                                     >
+                                         Delete Account
+                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            {selectedFile && (
+                <div className="fixed bottom-4 left-4 right-4 z-50 flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-10 sm:bottom-10 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:gap-6 sm:rounded-full sm:px-8 sm:py-4">
+                    <p className="whitespace-nowrap text-sm font-extrabold text-gray-900">Update photo?</p>
+                    <div className="flex min-w-0 gap-1 sm:gap-2">
+                        <button onClick={() => { setSelectedFile(null); setImagePreview(null); }} className="px-4 py-2 text-sm font-bold text-gray-400">Cancel</button>
+                        <button onClick={handleImageUpload} disabled={uploadingImage} className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-emerald-100 sm:px-6">Update</button>
+                    </div>
+                </div>
+            )}
+
+            {showPasswordModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4">
+                    <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-white p-5 shadow-2xl sm:p-8">
+                        <h3 className="text-2xl font-black text-gray-900 mb-2">{hasPassword ? 'Change password' : 'Add a password'}</h3>
+                        {!hasPassword && <p className="text-sm text-gray-500 mb-6">Your account uses Google Sign-In. Add a password so you can also sign in with your email.</p>}
+                        <p className="text-xs text-gray-400 mb-4">Password must be 8+ characters and include an uppercase letter, number, and special character.</p>
+                        {passwordError && (
+                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm font-medium">
+                                {passwordError}
+                            </div>
+                        )}
+                        <div className="space-y-4">
+                            {hasPassword && <input type="password" placeholder="Current Password" value={passwordData.currentPassword} onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })} className="w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-2xl outline-none focus:bg-white focus:border-emerald-500 transition-all" />}
+                            <input type="password" placeholder="New Password" value={passwordData.newPassword} onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} className="w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-2xl outline-none focus:bg-white focus:border-emerald-500 transition-all" />
+                            <input type="password" placeholder="Confirm New Password" value={passwordData.confirmPassword} onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} className="w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-2xl outline-none focus:bg-white focus:border-emerald-500 transition-all" />
+                        </div>
+                        <div className="flex gap-3 mt-10">
+                            <button onClick={() => { setShowPasswordModal(false); setPasswordError(''); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); }} className="flex-1 py-3.5 border border-gray-200 rounded-xl font-bold text-gray-400 hover:bg-gray-50 transition">Cancel</button>
+                            <button onClick={handlePasswordChange} disabled={loading} className="flex-1 py-3.5 bg-emerald-600 text-white rounded-xl font-bold shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition disabled:opacity-50">{loading ? 'Updating...' : 'Update'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-red-950/35 backdrop-blur-md p-4">
+                    <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-white p-5 shadow-2xl sm:p-8">
+                        <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mb-4">
+                            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4h6v3m-9 0h12" /></svg>
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-900 mb-2">Delete your account?</h3>
+                        <p className="text-sm leading-relaxed text-gray-500 mb-5">This permanently deletes your profile, messages, reservations, community activity, scans, and account data. This cannot be undone.</p>
+                        {deleteError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{deleteError}</div>}
+                        <input type="password" value={deletePassword} onChange={event => setDeletePassword(event.target.value)} placeholder="Enter your password" className="w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-2xl outline-none focus:bg-white focus:border-red-500 transition-all" />
+                        <div className="flex gap-3 mt-8">
+                            <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-3.5 border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50 transition">Cancel</button>
+                            <button onClick={handleDeleteAccount} disabled={deleteLoading} className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition disabled:opacity-50">{deleteLoading ? 'Deleting...' : 'Delete permanently'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Logout Confirmation Modal */}
+            <LogoutModal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+                onConfirm={handleLogout}
+                userName={user?.firstName || user?.username || 'User'}
+            />
+
+            {/* Save Profile Confirmation Modal */}
+            {showSaveConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4">
+                    <div className="bg-white rounded-[2rem] p-8 w-full max-w-sm shadow-2xl text-center">
+                        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8 text-emerald-600">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                                <polyline points="17 21 17 13 7 13 7 21" />
+                                <polyline points="7 3 7 8 15 8" />
+                            </svg>
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 mb-2">Save Changes?</h3>
+                        <p className="text-gray-500 text-sm mb-6">Are you sure you want to save your profile changes?</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowSaveConfirm(false)} className="flex-1 py-3 border border-gray-200 rounded-xl font-bold text-gray-400 hover:bg-gray-50 transition">Cancel</button>
+                            <button onClick={handleSave} disabled={loading} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition disabled:opacity-50">{loading ? 'Saving...' : 'Save'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Avatar Selector Modal */}
+            {showAvatarSelector && (
+                <AvatarSelector
+                    selectedAvatar={selectedDefaultAvatar || (isDefaultAvatar(user?.profileImage) ? user.profileImage : null)}
+                    onSelect={handleAvatarSelect}
+                    onClose={() => setShowAvatarSelector(false)}
+                />
+            )}
+        </div>
+    );
+};
+
+export default UserProfile;
