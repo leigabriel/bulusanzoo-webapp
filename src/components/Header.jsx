@@ -190,12 +190,14 @@ const Header = () => {
 
     const useOutsideClick = (ref, isOpen, setter) => {
         useEffect(() => {
-            const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setter(false); };
+            const handler = (e) => {
+                if (ref.current && !ref.current.contains(e.target)) setter(false);
+            };
             if (isOpen) {
-                document.addEventListener('mousedown', handler);
+                document.addEventListener('pointerdown', handler);
             }
             return () => {
-                document.removeEventListener('mousedown', handler);
+                document.removeEventListener('pointerdown', handler);
             }
         }, [isOpen, ref, setter]);
     };
@@ -591,7 +593,7 @@ const Header = () => {
                 </div>
             </header>
 
-            <div className={`fixed inset-0 z-[120] flex justify-end transition-all duration-300 ${showSidePanel ? 'visible' : 'invisible'}`}>
+            <div className={`fixed inset-0 z-[140] flex justify-end transition-all duration-300 ${showSidePanel ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}>
                 <div
                     className={`absolute inset-0 bg-black/20 backdrop-blur-md transition-opacity duration-300 ${showSidePanel ? 'opacity-100' : 'opacity-0'}`}
                     onClick={closeSidePanel}

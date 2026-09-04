@@ -40,7 +40,7 @@ const unlockPageScroll = () => {
     document.body.style.paddingRight = originalStyles.bodyPaddingRight;
     document.documentElement.style.overflow = originalStyles.htmlOverflow;
     document.documentElement.style.overscrollBehavior = originalStyles.htmlOverscrollBehavior;
-    if (shouldRestartLenis) lockedLenis?.start();
+    if (shouldRestartLenis && lockedLenis && lockedLenis.isStopped) lockedLenis.start();
     lockedLenis = null;
     shouldRestartLenis = false;
     originalStyles = null;
@@ -54,7 +54,12 @@ const useScrollLock = (locked) => {
 
         lockPageScroll(lenis);
         return unlockPageScroll;
-    }, [lenis, locked]);
+        // `lenis` instance may be recreated while `locked` stays true across mounts.
+        // Only treat `locked` as a dependency so this effect re-runs when the lock
+        // actually toggles, preventing the shared lock counter from leaking on
+        // Lenis reconfiguration.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [locked]);
 };
 
 export default useScrollLock;
