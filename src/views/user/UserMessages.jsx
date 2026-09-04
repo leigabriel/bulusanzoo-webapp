@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { messageAPI } from '../../services/api-client';
-import { ReactLenis } from 'lenis/react';
 
 const MailIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -163,7 +162,7 @@ const UserMessages = () => {
     }
 
     return (
-        <ReactLenis root>
+        <>
             <div className="flex h-[100dvh] w-full overflow-hidden bg-white">
                 <div className={`h-full flex flex-col relative border-r border-gray-100 shadow-xl overflow-hidden bg-slate-50/30 transition-all duration-500 ${showDetail ? 'hidden md:flex md:w-1/2' : 'w-full'}`}>
                     <header className="flex-shrink-0 px-6 lg:px-8 py-4 lg:py-6 flex items-center justify-between bg-white border-b border-gray-100 z-20">
@@ -431,7 +430,7 @@ const UserMessages = () => {
                     </div>
                 </div>
             )}
-        </ReactLenis>
+        </>
     );
 };
 

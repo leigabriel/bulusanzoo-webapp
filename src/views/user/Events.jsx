@@ -5,7 +5,6 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { ReactLenis } from 'lenis/react';
 import AIFloatingButton from '../../components/common/AIFloatingButton';
 import { userAPI, reservationAPI } from '../../services/api-client';
 import { useAuth } from '../../hooks/use-auth';
@@ -287,7 +286,6 @@ const Events = () => {
     };
 
     return (
-        <ReactLenis root>
             <div ref={containerRef} className="min-h-screen bg-white text-black">
                 <Header />
 
@@ -697,7 +695,6 @@ const Events = () => {
                 <Footer />
                 <AIFloatingButton />
             </div>
-        </ReactLenis>
     );
 };
 

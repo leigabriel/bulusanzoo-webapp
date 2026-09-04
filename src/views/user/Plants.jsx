@@ -4,7 +4,6 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { ReactLenis } from 'lenis/react';
 import AIFloatingButton from '../../components/common/AIFloatingButton';
 import { userAPI } from '../../services/api-client';
 
@@ -71,7 +70,6 @@ const Plants = () => {
     }, [loading, plants]);
 
     return (
-        <ReactLenis root>
             <div className="relative min-h-screen bg-white text-black">
                 <Header />
                 <div className="flex min-h-[50vh] w-full flex-col items-center justify-center px-4 pt-20 md:min-h-[60vh]">
@@ -86,7 +84,6 @@ const Plants = () => {
                 <AIFloatingButton />
                 <Footer />
             </div>
-        </ReactLenis>
     );
 };
 

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { getProfileImageUrl } from '../services/api-client';
-import { isDefaultAvatar, getDefaultAvatarSvg, getInitials } from '../utils/profile-avatars';
+import { getProfileImageUrl } from '../../services/api-client';
+import { isDefaultAvatar, getDefaultAvatarSvg, getInitials } from '../../utils/profile-avatars';
 
 /**
  * ProfileImage Component

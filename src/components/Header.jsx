@@ -45,7 +45,7 @@ const NAV_LINKS = [
 const IconBtn = ({ src, alt, onClick, badge, className = '' }) => (
     <button
         onClick={onClick}
-        className={`relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors flex-shrink-0 ${className}`}
+        className={`relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0 ${className}`}
     >
         <img src={src} alt={alt} className="w-[18px] h-[18px] object-contain opacity-55" />
         {badge > 0 && (
@@ -59,7 +59,7 @@ const IconBtn = ({ src, alt, onClick, badge, className = '' }) => (
 const CloseBtn = ({ onClick }) => (
     <button
         onClick={onClick}
-        className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors flex-shrink-0"
+        className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors shrink-0"
     >
         <img src={ICONS.close} alt="Close" className="w-3.5 h-3.5 object-contain opacity-40" />
     </button>
@@ -72,7 +72,7 @@ const SectionLabel = ({ label }) => (
 const MenuItem = ({ iconUrl, label, badge, danger, to, onClick, onClose, isLast, onNavigate }) => {
     const inner = (
         <span className={`flex items-center gap-3 px-4 py-3 transition-colors group ${danger ? 'hover:bg-red-50/60' : 'hover:bg-green-400'} ${!isLast ? 'border-b border-gray-50' : ''}`}>
-            <span className={`w-8 h-8 flex items-center justify-center rounded-xl flex-shrink-0 ${danger ? 'bg-red-50' : 'bg-gray-50'}`}>
+            <span className={`w-8 h-8 flex items-center justify-center rounded-xl shrink-0 ${danger ? 'bg-red-50' : 'bg-gray-50'}`}>
                 <img
                     src={iconUrl}
                     alt={label}
@@ -84,7 +84,7 @@ const MenuItem = ({ iconUrl, label, badge, danger, to, onClick, onClose, isLast,
                 {label}
             </span>
             {badge && (
-                <span className="px-1.5 py-0.5 bg-emerald-700 text-white rounded text-[9px] font-semibold uppercase tracking-wide flex-shrink-0">
+                <span className="px-1.5 py-0.5 bg-emerald-700 text-white rounded text-[9px] font-semibold uppercase tracking-wide shrink-0">
                     {badge}
                 </span>
             )}
@@ -186,12 +186,15 @@ const Header = () => {
         } else {
             setShowSidePanel(false);
         }
-    }, [location]);
+    }, [location.pathname, location.state]);
 
     const useOutsideClick = (ref, isOpen, setter) => {
         useEffect(() => {
             const handler = (e) => {
-                if (ref.current && !ref.current.contains(e.target)) setter(false);
+                if (ref.current && !ref.current.contains(e.target)
+                    && !e.target.closest('[data-side-panel-toggle]')) {
+                    setter(false);
+                }
             };
             if (isOpen) {
                 document.addEventListener('pointerdown', handler);
@@ -201,6 +204,8 @@ const Header = () => {
             }
         }, [isOpen, ref, setter]);
     };
+
+    const toggleSidePanel = () => setShowSidePanel((open) => !open);
 
     useOutsideClick(sidePanelRef, showSidePanel, setShowSidePanel);
     useOutsideClick(notificationPanelRef, showNotificationPanel, setShowNotificationPanel);
@@ -446,7 +451,7 @@ const Header = () => {
             >
                 <div className="mx-auto px-4 sm:px-6 lg:px-10 max-w-[1800px]" style={{ height: '56px' }}>
                     <div className="flex items-center h-full">
-                        <div className="flex min-w-0 flex-shrink-0 items-center lg:w-[180px]">
+                        <div className="flex min-w-0 shrink-0 items-center lg:w-[180px]">
                             <Link to="/" className="flex min-w-0 items-center" onClick={(e) => { e.preventDefault(); setIsMenuOpen(false); handleTransitionNavigate(e, '/'); }}>
                                 <img src="/bz-url-logo.png" alt="Logo" className="w-7 h-7 object-contain mr-2" />
                                 <span className="whitespace-nowrap text-[18px] font-bold text-[#212631] tracking-tight">
@@ -463,8 +468,8 @@ const Header = () => {
                                         to={link.path}
                                         onClick={(e) => { e.preventDefault(); handleTransitionNavigate(e, link.path); }}
                                         className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-all duration-150 whitespace-nowrap ${location.pathname === link.path
-                                            ? 'bg-[#000] text-gray-100 shadow-sm'
-                                            : 'text-[#000]/50 hover:text-gray-800'
+                                            ? 'bg-black text-gray-100 shadow-sm'
+                                            : 'text-black/50 hover:text-gray-800'
                                             }`}
                                     >
                                         {link.label}
@@ -473,7 +478,7 @@ const Header = () => {
                             </div>
                         </nav>
 
-                        <div className="hidden w-[180px] flex-shrink-0 items-center justify-end gap-2 lg:flex xl:w-[260px]">
+                        <div className="hidden w-[180px] shrink-0 items-center justify-end gap-2 lg:flex xl:w-[260px]">
                             <Link to="/reservations" onClick={(e) => { e.preventDefault(); handleTransitionNavigate(e, '/reservations'); }}>
                                 <button className="px-4 py-1.5 rounded-full bg-gray-900 text-white text-[13px] font-medium hover:bg-gray-700 transition-colors whitespace-nowrap">
                                     Reserve
@@ -488,17 +493,18 @@ const Header = () => {
                                 </div>
                             ) : user ? (
                                 <button
-                                    onClick={() => setShowSidePanel(true)}
+                                    data-side-panel-toggle
+                                    onClick={toggleSidePanel}
                                     className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-gray-200 bg-white hover:border-gray-500 hover:bg-green-400 transition-all"
                                 >
                                     <img
                                         src={avatarSrc}
                                         alt="Profile"
-                                        className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                                        className="w-7 h-7 rounded-full object-cover shrink-0"
                                         referrerPolicy="no-referrer"
                                         onError={(e) => { e.target.onerror = null; e.target.src = '/profile-img/default-avatar.svg'; }}
                                     />
-                                    <span className="hidden max-w-[80px] truncate text-[13px] font-medium text-gray-700 xl:block">
+                                    <span className="hidden max-w-20 truncate text-[13px] font-medium text-gray-700 xl:block">
                                         {displayName}
                                     </span>
                                 </button>
@@ -511,8 +517,8 @@ const Header = () => {
                             )}
                         </div>
 
-                        <div className="ml-auto flex flex-shrink-0 items-center gap-1 lg:hidden">
-                            <Link to="/reservations" onClick={(e) => { e.preventDefault(); handleTransitionNavigate(e, '/reservations'); }} className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors flex-shrink-0">
+                        <div className="ml-auto flex shrink-0 items-center gap-1 lg:hidden">
+                            <Link to="/reservations" onClick={(e) => { e.preventDefault(); handleTransitionNavigate(e, '/reservations'); }} className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors shrink-0">
                                 <img src={ICONS.ticket} alt="Reserve" className="w-[18px] h-[18px] object-contain opacity-55" />
                             </Link>
                             <IconBtn src={ICONS.notification} alt="Notifications" onClick={openNotifications} badge={unreadCount} />
@@ -528,13 +534,14 @@ const Header = () => {
                     <div className="flex flex-col p-4 gap-1">
                         {user && (
                             <button
+                                data-side-panel-toggle
                                 onClick={() => { setIsMenuOpen(false); setShowSidePanel(true); }}
                                 className="flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors text-left mb-2"
                             >
                                 <img
                                     src={avatarSrc}
                                     alt="Profile"
-                                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                                    className="w-9 h-9 rounded-full object-cover shrink-0"
                                     referrerPolicy="no-referrer"
                                     onError={(e) => { e.target.onerror = null; e.target.src = '/profile-img/default-avatar.svg'; }}
                                 />
@@ -556,10 +563,10 @@ const Header = () => {
                                     <img
                                         src={link.iconUrl}
                                         alt={link.label}
-                                        className="w-4 h-4 object-contain flex-shrink-0"
+                                        className="w-4 h-4 object-contain shrink-0"
                                         style={{ opacity: active ? 1 : 0.45, filter: active ? 'brightness(0) invert(0)' : 'none' }}
                                     />
-                                    <span className={`text-[13px] font-medium ${active ? 'text-[#000]' : 'text-gray-600'}`}>
+                                    <span className={`text-[13px] font-medium ${active ? 'text-black' : 'text-gray-600'}`}>
                                         {link.label}
                                     </span>
                                 </Link>
@@ -583,7 +590,7 @@ const Header = () => {
                                 <img
                                     src={ICONS.logout}
                                     alt="Sign Out"
-                                    className="w-4 h-4 object-contain flex-shrink-0"
+                                    className="w-4 h-4 object-contain shrink-0"
                                     style={{ filter: 'invert(30%) sepia(80%) saturate(700%) hue-rotate(330deg) opacity(0.75)' }}
                                 />
                                 <span className="text-[13px] font-medium">Sign Out</span>
@@ -605,7 +612,7 @@ const Header = () => {
                     aria-modal="true"
                     aria-label="User navigation panel"
                 >
-                    <div className="relative flex-shrink-0 overflow-hidden border-b border-emerald-100 bg-white px-5 pb-5 pt-5">
+                    <div className="relative shrink-0 overflow-hidden border-b border-emerald-100 bg-white px-5 pb-5 pt-5">
                         <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[#c6fe69]/40 blur-2xl" />
                         <div className="relative flex items-center justify-between">
                             <div>
@@ -670,7 +677,7 @@ const Header = () => {
                                      <img
                                          src={avatarSrc}
                                          alt=""
-                                         className="h-11 w-11 flex-shrink-0 rounded-2xl border-2 border-white object-cover shadow-sm"
+                                         className="h-11 w-11 shrink-0 rounded-2xl border-2 border-white object-cover shadow-sm"
                                          referrerPolicy="no-referrer"
                                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/profile-img/default-avatar.svg'; }}
                                      />
@@ -679,7 +686,7 @@ const Header = () => {
                                          <span className="mt-0.5 block truncate text-[11px] text-gray-500">{profileEmail}</span>
                                            <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-emerald-700">View profile</span>
                                      </span>
-                                     <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition-colors group-hover:text-green-400" aria-hidden="true">›</span>
+                                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition-colors group-hover:text-green-400" aria-hidden="true">›</span>
                                   </button>
                              ) : (
                                  <Link to="/login" onClick={closeSidePanel} className="block rounded-2xl bg-[#172018] px-4 py-3 text-center text-[13px] font-semibold text-white transition-colors hover:bg-green-400">
@@ -694,7 +701,7 @@ const Header = () => {
                                  <img
                                      src={ICONS.logout}
                                      alt="Sign Out"
-                                     className="w-4 h-4 object-contain flex-shrink-0"
+                                     className="w-4 h-4 object-contain shrink-0"
                                      style={{ filter: 'invert(30%) sepia(80%) saturate(700%) hue-rotate(330deg) opacity(0.75)' }}
                                  />
                                  <span className="text-[13px] font-medium">Sign Out</span>
@@ -704,21 +711,21 @@ const Header = () => {
               </div>
               </div>
 
-              <div className={`fixed inset-0 z-[125] flex justify-end transition-all duration-300 ${showSettingsPanel ? 'visible' : 'invisible'}`}>
+              <div className={`fixed inset-0 z-[125] flex justify-end transition-all duration-300 ${showSettingsPanel ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}>
                   <div className={`absolute inset-0 bg-black/25 backdrop-blur-[2px] transition-opacity duration-300 ${showSettingsPanel ? 'opacity-100' : 'opacity-0'}`} onClick={() => setShowSettingsPanel(false)} />
                   <div className={`relative h-full w-full overflow-y-auto overscroll-contain bg-white shadow-2xl transition-transform duration-300 ease-out sm:w-1/2 sm:min-w-[420px] sm:max-w-[720px] ${showSettingsPanel ? 'translate-x-0' : 'translate-x-full'}`} role="dialog" aria-modal="true" aria-label="Account settings" data-lenis-prevent>
                       <Settings embedded onClose={() => setShowSettingsPanel(false)} />
                   </div>
               </div>
 
-              <div className={`fixed inset-0 z-[125] flex justify-end transition-all duration-300 ${showProfilePanel ? 'visible' : 'invisible'}`}>
+              <div className={`fixed inset-0 z-[125] flex justify-end transition-all duration-300 ${showProfilePanel ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}>
                   <div className={`absolute inset-0 bg-black/25 backdrop-blur-[2px] transition-opacity duration-300 ${showProfilePanel ? 'opacity-100' : 'opacity-0'}`} onClick={() => setShowProfilePanel(false)} />
                   <div className={`relative h-full w-full overflow-y-auto overscroll-contain bg-white shadow-2xl transition-transform duration-300 ease-out sm:w-1/2 sm:min-w-[420px] sm:max-w-[720px] ${showProfilePanel ? 'translate-x-0' : 'translate-x-full'}`} role="dialog" aria-modal="true" aria-label="User profile" data-lenis-prevent>
                       <UserProfile embedded onClose={() => setShowProfilePanel(false)} />
                   </div>
               </div>
 
-              <div className={`fixed inset-0 z-[110] flex justify-end transition-all duration-300 ${showAIScanner ? 'visible' : 'invisible'}`}>
+              <div className={`fixed inset-0 z-[130] flex justify-end transition-all duration-300 ${showAIScanner ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}>
                 <div
                     className={`absolute inset-0 bg-black/25 backdrop-blur-[2px] transition-opacity duration-300 ${showAIScanner ? 'opacity-100' : 'opacity-0'}`}
                     onClick={() => setShowAIScanner(false)}
@@ -728,8 +735,8 @@ const Header = () => {
                     role="dialog"
                     aria-modal="true"
                 >
-                    <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-emerald-100/80 bg-white flex-shrink-0">
-                        <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-emerald-100/80 bg-white shrink-0">
+                        <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
                             <img src="/animal-scan.svg" alt="" className="w-9 h-9 object-contain" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -744,7 +751,7 @@ const Header = () => {
                 </div>
             </div>
 
-            <div className={`fixed inset-0 z-[130] flex items-center justify-center p-4 transition-all duration-300 ${showEmailModal ? 'visible' : 'invisible'}`}>
+            <div className={`fixed inset-0 z-[130] flex items-center justify-center p-4 transition-all duration-300 ${showEmailModal ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}>
                 <div
                     className={`absolute inset-0 bg-black/25 backdrop-blur-[2px] transition-opacity duration-300 ${showEmailModal ? 'opacity-100' : 'opacity-0'}`}
                     onClick={() => { setShowEmailModal(false); setEmailSubject(''); setEmailMessage(''); setEmailError(''); }}
@@ -809,7 +816,7 @@ const Header = () => {
                 </div>
             </div>
 
-            <div className={`fixed inset-0 z-[120] overflow-hidden transition-all duration-300 ${showNotificationPanel ? 'visible' : 'invisible'}`}>
+            <div className={`fixed inset-0 z-[120] overflow-hidden transition-all duration-300 ${showNotificationPanel ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}>
                 <div
                     className={`absolute inset-0 bg-black/25 backdrop-blur-[2px] transition-opacity duration-300 ${showNotificationPanel ? 'opacity-100' : 'opacity-0'}`}
                     onClick={() => setShowNotificationPanel(false)}
@@ -818,7 +825,7 @@ const Header = () => {
                     ref={notificationPanelRef}
                     className={`absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ${showNotificationPanel ? 'translate-x-0' : 'translate-x-full'}`}
                 >
-                    <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
                         <div className="flex items-center gap-3">
                             <span className="text-[13px] font-semibold text-gray-900">Notifications</span>
                             {unreadCount > 0 && (
@@ -865,7 +872,7 @@ const Header = () => {
                                                 }`}
                                             onClick={() => handleNotificationClick(notif)}
                                         >
-                                            <div className={`relative w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${notif.type === 'event' ? 'bg-emerald-50' :
+                                            <div className={`relative w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${notif.type === 'event' ? 'bg-emerald-50' :
                                                 notif.type === 'reservation' ? 'bg-orange-50' : 'bg-gray-50'
                                                 }`}>
                                                 <img

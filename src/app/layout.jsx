@@ -1,5 +1,4 @@
 import './globals.css';
-import 'lenis/dist/lenis.css';
 import 'react-toastify/dist/ReactToastify.css';
 
 export const metadata = {

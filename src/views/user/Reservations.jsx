@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { ReactLenis } from 'lenis/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import AIFloatingButton from '../../components/common/AIFloatingButton';
@@ -358,7 +357,6 @@ const Reservations = () => {
     }
 
     return (
-        <ReactLenis root>
             <div className="bg-[#ebebeb] text-[#212631] relative min-h-screen">
                 <Header />
 
@@ -808,7 +806,6 @@ const Reservations = () => {
                 <Footer />
                 <AIFloatingButton />
             </div>
-        </ReactLenis>
     );
 };
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ReactLenis } from 'lenis/react';
+
 import { useNavigate } from 'react-router-dom';
 import { AI_ASSISTANT_THEME } from '../../../config/ai-assistant-theme';
 import { getAuthHeaders, API_BASE_URL } from '../../../services/api-client';
@@ -367,7 +367,7 @@ const AIChatAssistant = ({ onClose }) => {
                         </div>
                     ) : (
                         <div className="flex-1 min-h-0 overflow-hidden relative">
-                            <ReactLenis isChild className="h-full overflow-y-auto overscroll-contain px-4 sm:px-7 py-6 sm:py-8" data-lenis-prevent>
+                            <div className="h-full overflow-y-auto overscroll-contain px-4 sm:px-7 py-6 sm:py-8" data-lenis-prevent>
                                 <div className="flex flex-col gap-5 sm:gap-6 max-w-2xl mx-auto min-w-0 pb-28">
                                     {messages.map((message, index) => {
                                         const isUser = message.role === 'user';
@@ -386,7 +386,7 @@ const AIChatAssistant = ({ onClose }) => {
                                     {loading && <div className="flex items-end gap-2.5 sm:gap-3"><Avatar /><div className="px-5 py-4 flex gap-1.5 rounded-[0.25rem_1rem_1rem_1rem]" style={{ background: THEME.surface, border: `1px solid ${THEME.border}` }}>{[0, 150, 300].map(delay => <span key={delay} className="w-2 h-2 rounded-full animate-bounce" style={{ background: THEME.textSoft, animationDelay: `${delay}ms` }} />)}</div></div>}
                                     <div ref={messagesEndRef} className="h-12" />
                                 </div>
-                            </ReactLenis>
+                            </div>
                             <div className="absolute bottom-0 left-0 w-full px-4 sm:px-7 pt-10 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-7" style={{ background: `linear-gradient(to top, ${THEME.base} 65%, transparent)` }}><div className="max-w-2xl mx-auto">{renderComposer()}</div></div>
                         </div>
                     )}

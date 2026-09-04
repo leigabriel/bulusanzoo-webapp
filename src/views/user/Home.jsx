@@ -1,12 +1,11 @@
 import React, { useRef, useLayoutEffect } from 'react';
-import { ReactLenis } from 'lenis/react';
 import { useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import AIFloatingButton from '../../components/common/AIFloatingButton';
-import '../../App.css';
+import '../../app.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -358,19 +357,6 @@ const ZootopiaSection = () => {
 
 const Home = () => {
     return (
-        <ReactLenis
-            root
-            options={{
-                lerp: 0.05,
-                duration: 1.5,
-                easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-                smoothWheel: true,
-                smoothTouch: false,
-                wheelMultiplier: 1.05,
-                touchMultiplier: 2,
-                infinite: false
-            }}
-        >
             <div className="relative min-h-[100dvh] bg-white">
                 <Header />
                 <AIFloatingButton />
@@ -393,7 +379,6 @@ const Home = () => {
                     <Footer />
                 </div>
             </div>
-        </ReactLenis>
     );
 };
 

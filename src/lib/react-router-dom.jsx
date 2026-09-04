@@ -2,7 +2,7 @@
 
 import NextLink from 'next/link';
 import { useParams as useNextParams, usePathname, useRouter, useSearchParams as useNextSearchParams } from 'next/navigation';
-import { Children, createContext, isValidElement, useContext, useEffect, useMemo } from 'react';
+import { Children, createContext, isValidElement, useContext, useEffect, useMemo, useRef } from 'react';
 
 const ParamsContext = createContext({});
 
@@ -75,17 +75,26 @@ export function useNavigate() {
 export function useLocation() {
   const pathname = usePathname();
   const searchParams = useNextSearchParams();
-  let state = null;
-  if (typeof window !== 'undefined') {
-    const key = `navigation-state:${pathname}`;
-    const value = sessionStorage.getItem(key);
-    if (value) {
-      try { state = JSON.parse(value); } catch { state = null; }
-      sessionStorage.removeItem(key);
+  const stateRef = useRef(null);
+  const prevPathname = useRef(null);
+
+  if (prevPathname.current !== pathname) {
+    if (typeof window !== 'undefined') {
+      const key = `navigation-state:${pathname}`;
+      const value = sessionStorage.getItem(key);
+      if (value) {
+        try { stateRef.current = JSON.parse(value); } catch { stateRef.current = null; }
+        sessionStorage.removeItem(key);
+      } else {
+        stateRef.current = null;
+      }
     }
+    prevPathname.current = pathname;
   }
+
   const search = searchParams.toString();
-  return { pathname, search: search ? `?${search}` : '', hash: typeof window === 'undefined' ? '' : window.location.hash, state };
+  const hash = typeof window === 'undefined' ? '' : window.location.hash;
+  return useMemo(() => ({ pathname, search: search ? `?${search}` : '', hash, state: stateRef.current }), [pathname, search, hash]);
 }
 
 export function useParams() {

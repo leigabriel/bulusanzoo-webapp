@@ -1,5 +1,4 @@
 import React, { useRef } from 'react';
-import { ReactLenis } from 'lenis/react';
 import { motion, useInView, useScroll, useTransform } from 'framer-motion';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
@@ -257,7 +256,6 @@ const AboutUs = () => {
     ];
 
     return (
-        <ReactLenis root>
             <div className="min-h-screen bg-[#fff] text-[#212631] overflow-x-hidden flex flex-col">
                 <Header />
 
@@ -347,7 +345,6 @@ const AboutUs = () => {
                 <Footer />
                 <AIFloatingButton />
             </div>
-        </ReactLenis>
     );
 };
 

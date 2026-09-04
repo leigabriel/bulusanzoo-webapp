@@ -3,7 +3,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Home from './views/user/Home';
 import Animals from './views/user/Animals';
@@ -56,7 +55,7 @@ import AdminLayout from './components/layout/AdminLayout';
 import StaffLayout from './components/layout/StaffLayout';
 import AnimalClassifier from './components/features/ai-scanner/AnimalClassifier';
 import MapPage from './views/user/Map';
-import './App.css';
+import './app.css';
 import AIAssist from './views/AIAssist';
 import { trackVisit } from './services/visitor-tracking';
 

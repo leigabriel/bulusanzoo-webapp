@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { ReactLenis } from 'lenis/react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import Header from '../../components/Header';
@@ -160,7 +159,6 @@ const CommunityPage = () => {
     };
 
     return (
-        <ReactLenis root>
             <div className="bg-[#f6f7f4] text-[#212631] relative min-h-screen">
                 <Header />
 
@@ -341,7 +339,6 @@ const CommunityPage = () => {
                     onClose={() => closeConfirmation(false)}
                 />
             </div>
-        </ReactLenis>
     );
 };
 

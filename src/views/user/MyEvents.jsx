@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { ReactLenis } from 'lenis/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AIFloatingButton from '../../components/common/AIFloatingButton';
 import { reservationAPI } from '../../services/api-client';
@@ -175,7 +174,6 @@ const MyEvents = () => {
     };
 
     return (
-        <ReactLenis root>
             <div className="min-h-screen bg-white text-black">
                 <Header />
 
@@ -477,7 +475,6 @@ const MyEvents = () => {
                 <Footer />
                 <AIFloatingButton />
             </div>
-        </ReactLenis>
     );
 };
 

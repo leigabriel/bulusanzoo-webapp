@@ -120,23 +120,6 @@ const MapPage = () => {
     }, [selectedAnimalId]);
 
     useEffect(() => {
-        let lenisRafId = null;
-        
-        const loadLenis = () => {
-            if (window.Lenis) return;
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js';
-            script.onload = () => {
-                const lenis = new window.Lenis({ lerp: 0.1, duration: 1.2 });
-                const raf = (time) => { 
-                    lenis.raf(time); 
-                    lenisRafId = requestAnimationFrame(raf); 
-                };
-                lenisRafId = requestAnimationFrame(raf);
-            };
-            document.head.appendChild(script);
-        };
-
         const loadLeaflet = () => {
             if (window.L) { initializeMap(); return; }
             const link = document.createElement('link');
@@ -149,10 +132,8 @@ const MapPage = () => {
             document.body.appendChild(script);
         };
 
-        loadLenis();
         loadLeaflet();
         return () => { 
-            if (lenisRafId) cancelAnimationFrame(lenisRafId);
             if (mapRef.current) mapRef.current.remove(); 
         };
     }, []);

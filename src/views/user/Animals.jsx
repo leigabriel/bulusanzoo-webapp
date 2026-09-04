@@ -4,7 +4,6 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { ReactLenis } from 'lenis/react';
 import AIFloatingButton from '../../components/common/AIFloatingButton';
 import { userAPI } from '../../services/api-client';
 
@@ -132,7 +131,6 @@ const Animals = () => {
     }, [loading, animals]);
 
     return (
-        <ReactLenis root>
             <div className="bg-white text-black relative min-h-screen">
                 <Header />
 
@@ -182,7 +180,6 @@ const Animals = () => {
                 <AIFloatingButton />
                 <Footer />
             </div>
-        </ReactLenis>
     );
 };
 

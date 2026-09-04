@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, useParams } from 'react-router-dom';
-import { ReactLenis } from 'lenis/react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import AIFloatingButton from '../../components/common/AIFloatingButton';
@@ -146,7 +145,6 @@ const CollectionDetail = ({ type }) => {
     }, [item, loading]);
 
     return (
-        <ReactLenis root>
             <div className="min-h-screen bg-white text-[#111]">
                 <Header />
                 <main>
@@ -235,7 +233,6 @@ const CollectionDetail = ({ type }) => {
                 <AIFloatingButton />
                 <Footer />
             </div>
-        </ReactLenis>
     );
 };
 
